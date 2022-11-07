@@ -1,4 +1,5 @@
-﻿#include <opencv2/opencv.hpp>
+﻿#define _CRT_SECURE_NO_WARNINGS
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -27,12 +28,13 @@ void gaussianfilter(const cv::Mat& src, cv::Mat& dst, int size, double sigma);
 void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigma, int minus);
 void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath);
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
-void GrainMatchinghash(const vector<grain>& input_hash, const vector<grain>& input_pair, int cut_side, int cut_pixel, int hash_size, int siftX, int siftY);
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label);
+void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> label);
+void grain2csv0(string filepath, const vector<grain>& input, vector<string> label);
 
 vector<string> label_center = { "centerX", "centerY", "flag" };
 vector<string> label_dist = { "distX","distY","flag" };
-int minus = 20;
+
 
 
 
@@ -44,16 +46,18 @@ int main(int argc, char* argv[])
     }
 
 
-    if (argc != 4)
+    if (argc != 6)
     {
         cout << "argc = " << argc << endl;
-        cout << "command line error, please vx vy NPicture" << endl;
+        cout << "command line error, please vx vy NPicture minus mode" << endl;
         return 3;
     }
     int layer = 0;
     int vx = atoi(argv[1]);
     int vy = atoi(argv[2]);
     int NPcture = atoi(argv[3]);
+    int minus = atoi(argv[4]);
+    int mode = atoi(argv[5]);
     string layer_s = std::to_string(layer);
     string vx_s = int2string_0set(vx, 4);
     string vy_s = int2string_0set(vy, 4);
@@ -96,6 +100,7 @@ int main(int argc, char* argv[])
     {
         cv::Mat mat_ori, mat_temp, mat_gauss, mat_thr;
         string pngpath = foldername + "/" + foldername + "_" + std::to_string(num) + ".png";
+        //string pngpath = foldername + "/" + foldername + "_" + std::to_string(num) + "_0.png";
         if (std::filesystem::exists(pngpath) == false)
         {
             cout << "there is not png file" << pngpath << endl;
@@ -134,7 +139,14 @@ int main(int argc, char* argv[])
 
             GrainMatching(CenterOfBrightnessAll[num], CenterOfBrightnessAll[i], distGrain, 0, 0, 0, 0);
             string csvpath = savepath + "/dist_" + pos1 + "_" + pos2;
-            grain2csv(csvpath, distGrain, label_dist);
+            if (mode == 0)
+            {
+                grain2csv(csvpath, distGrain, label_dist);
+            }
+            else if (mode == 1)
+            {
+                grain2csv_skip(csvpath, distGrain, label_dist);
+            }
             cout << csvpath << " ended" << endl;
         }
     }
@@ -223,6 +235,11 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
 {
     /*type = 0 flag=3をpass, type=1 カット, type=2 全部入れる*/
 
+    int size1 = input1.size();
+    int size2 = input2.size();
+
+    cout << "total grains " << size1 << " vs " << size2 << endl;
+
     for (int i = 0; i < input1.size(); i++)
     {
         for (int j = 0; j < input2.size(); j++)
@@ -258,17 +275,58 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
         }
         if (i == input1.size() - 1)
         {
-            cout << "\r" << i << "/" << input1.size() << string(12, ' ') << endl;
+            //cout << "\r" << i << "/" << input1.size() << string(12, ' ') << endl;
         }
         else
         {
-            cout << "\r" << i << "/" << input1.size() << string(12, ' ');
+            //cout << "\r" << i << "/" << input1.size() << string(12, ' ');
         }
        
     }
 }
 
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
+{
+    string file = filepath + ".csv";
+    std::ofstream ofs;
+    FILE* fp = std::fopen(file.c_str(), "wb");
+    //一行目(ラベルの記述)
+    for (int i = 0; i < label.size() - 1; i++)
+    {
+        fputs((label.at(i) + ",").c_str(), fp);
+    }
+    fputs((label.at(label.size() - 1) + "\r\n").c_str(), fp);
+
+    auto sz = input.size();
+    for (int i = 0; i < sz; i++)
+    {
+        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+    }
+    fclose(fp);
+}
+
+void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> label)
+{
+    string file = filepath + ".csv";
+    std::ofstream ofs;
+    FILE* fp = std::fopen(file.c_str(), "wb");
+    //一行目(ラベルの記述)
+    for (int i = 0; i < label.size() - 1; i++)
+    {
+        fputs((label.at(i) + ",").c_str(), fp);
+    }
+    fputs((label.at(label.size() - 1) + "\r\n").c_str(), fp);
+
+    auto sz = input.size();
+    for (int i = 0; i < sz; i++)
+    {
+        if (input[i].flg != 0) { continue; }
+        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+    }
+    fclose(fp);
+}
+
+void grain2csv0(string filepath, const vector<grain>& input, vector<string> label)
 {
     string file = filepath + ".csv";
     std::ofstream ofs;
