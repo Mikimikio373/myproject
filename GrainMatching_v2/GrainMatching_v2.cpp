@@ -1,11 +1,12 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <Match.h>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <Windows.h>
 #include <thread>
-
 
 using std::cout;
 using std::endl;
@@ -31,6 +32,7 @@ void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigm
 void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath);
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
 void GrainMatchingMaltiThread(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
+void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax);
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label);
 vector<vector<double>> MatchingCount(const vector<vector<double>>& input, const vector<vector<double>>& pair, double thr_pixel);
 void ThreadA(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel, int i);
@@ -147,6 +149,7 @@ int main(int argc, char* argv[])
             QueryPerformanceCounter(&end);
             std::cout << "culculate = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
             csvpath = savepath + "/dist_" + s_startvx + s_startvy + "vs" + s_vx + s_vy;
+
             QueryPerformanceCounter(&end);
             grain2csv(csvpath, distGrain, label_dist);
             QueryPerformanceCounter(&end);
@@ -155,8 +158,6 @@ int main(int argc, char* argv[])
         }
     }
     
-
-
     return 0;
 }
 
@@ -305,6 +306,41 @@ void GrainMatchingMaltiThread(const vector<grain>& input1, const vector<grain>& 
     }
 }
 
+void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax)
+{
+    double x_wbin = (xmax - xmin) / xbin;
+    double y_wbin = (ymax - ymin) / ybin;
+    vector<vector<vector<grain>>> box(xbin, vector<vector<grain>>(ybin));
+    for (int i = 0; i < input.size(); i++)
+    {
+        //範囲外にあったらpass
+        if (input[i].x < xmin || input[i].x > xmax || input[i].y < ymin || input[i].y > ymax) { continue; }
+        grain tmp;
+        tmp.x = input[i].x;
+        tmp.y = input[i].y;
+        tmp.flg = input[i].flg;
+        int a = (int)floor((input[i].x - xmin) / x_wbin); //代入するbinの計算
+        int b = (int)floor((input[i].y - ymin) / y_wbin);
+        box[a][b].push_back(tmp); //bin詰め
+    }
+    int maxbinsize = 0;
+    int maxbinx, maxbiny;
+    for (int i = 0; i < xbin; i++)
+    {
+        for (int j = 0; j < ybin; j++)
+        {
+            int size = box[i][j].size();
+            if (size > maxbinsize)
+            {
+                maxbinsize = size;
+                maxbinx = i;
+                maxbiny = j;
+            }
+        }
+    }
+    output = box[maxbinx][maxbiny];
+}
+
 
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
 {
@@ -412,3 +448,4 @@ void ThreadA(const vector<grain>& input1, const vector<grain>& input2, vector<gr
         cout << "\r" << i << "/" << input1.size() << string(12, ' ');
     }
 }
+

@@ -78,7 +78,6 @@ int main()
     CalculateBrightnessCenter(mat_gauss1, labels, stats, nLabs, CenterOfBrightness1, csvpath);
     cout << csvpath << " ended" << endl;
 
-    //二重ループでstage stepを変えて輝度重心計算→GrainMatching
     if (std::filesystem::exists(pngpath2) == false)
     {
         cout << "there is not png file" << pngpath2 << endl;
@@ -235,6 +234,41 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
         }
        
     }
+}
+
+void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax)
+{
+    double x_wbin = (xmax - xmin) / xbin;
+    double y_wbin = (ymax - ymin) / ybin;
+    vector<vector<vector<grain>>> box(xbin, vector<vector<grain>>(ybin));
+    for (int i = 0; i < input.size(); i++)
+    {
+        //範囲外にあったらpass
+        if (input[i].x < xmin || input[i].x > xmax || input[i].y < ymin || input[i].y > ymax) { continue; }
+        grain tmp;
+        tmp.x = input[i].x;
+        tmp.y = input[i].y;
+        tmp.flg = input[i].flg;
+        int a = (int)floor((input[i].x - xmin) / x_wbin); //代入するbinの計算
+        int b = (int)floor((input[i].y - ymin) / y_wbin);
+        box[a][b].push_back(tmp); //bin詰め
+    }
+    int maxbinsize = 0;
+    int maxbinx, maxbiny;
+    for (int i = 0; i < xbin; i++)
+    {
+        for (int j = 0; j < ybin; j++)
+        {
+            int size = box[i][j].size();
+            if (size > maxbinsize)
+            {
+                maxbinsize = size;
+                maxbinx = i;
+                maxbiny = j;
+            }
+        }
+    }
+    output = box[maxbinx][maxbiny];
 }
 
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
