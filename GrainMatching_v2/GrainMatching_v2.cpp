@@ -150,8 +150,13 @@ int main(int argc, char* argv[])
             std::cout << "culculate = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
             csvpath = savepath + "/dist_" + s_startvx + s_startvy + "vs" + s_vx + s_vy;
 
+            vector<grain> distGrain_cut;
+            QueryPerformanceCounter(&start);
+            calc_max_bin(distGrain, distGrain_cut, 200, -2048, 2048, 200, -1088, 1088);
             QueryPerformanceCounter(&end);
-            grain2csv(csvpath, distGrain, label_dist);
+            std::cout << "cutting time = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
+            QueryPerformanceCounter(&start);
+            grain2csv(csvpath, distGrain_cut, label_dist);
             QueryPerformanceCounter(&end);
             std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
             cout << csvpath << " ended" << endl;
@@ -339,6 +344,14 @@ void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, d
         }
     }
     output = box[maxbinx][maxbiny];
+    for (int i = -1; i < 2; i++)
+    {
+        for (int j = -1; j < 2; j++)
+        {
+            if (i == 0 && j == 0) { continue; }
+            output.insert(output.end(), box[maxbinx + i][maxbiny + j].begin(), box[maxbinx + i][maxbiny + j].end());
+        }
+    }
 }
 
 
