@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="リソースファイル">
+      <UniqueIdentifier>{c4f88432-9398-47ee-b284-d302c6a86748}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ForCUDAtest.cpp">
+      <Filter>リソースファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

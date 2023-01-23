@@ -1,8 +1,10 @@
-﻿#include <opencv2/opencv.hpp>
+﻿#define _CRT_SECURE_NO_WARNINGS
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <Windows.h>
+#include <thread>
 
 
 using std::cout;
@@ -28,9 +30,10 @@ void gaussianfilter(const cv::Mat& src, cv::Mat& dst, int size, double sigma);
 void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigma, int minus);
 void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath);
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
-void GrainMatchinghash(const vector<grain>& input_hash, const vector<grain>& input_pair, int cut_side, int cut_pixel, int hash_size, int siftX, int siftY);
+void GrainMatchingMaltiThread(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label);
 vector<vector<double>> MatchingCount(const vector<vector<double>>& input, const vector<vector<double>>& pair, double thr_pixel);
+void ThreadA(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel, int i);
 
 vector<string> label_center = { "centerX", "centerY", "flag" };
 vector<string> label_dist = { "distX","distY","flag" };
@@ -42,6 +45,10 @@ int minus = 20;
 
 int main(int argc, char* argv[])
 {
+    LARGE_INTEGER freq;
+    if (!QueryPerformanceFrequency(&freq))      // 単位習得
+        return 0;
+    LARGE_INTEGER start, end;
     for (int i = 0; i < argc; i++)
     {
         cout << argv[i] << endl;
@@ -66,7 +73,7 @@ int main(int argc, char* argv[])
 
     int layer = 0;
     int vx = 0;
-    int vy = 1;
+    int vy = 0;
     std::filesystem::create_directory(savepath);
     string layer_s = std::to_string(layer);
     string vx_s = int2string_0set(vx, 4);
@@ -86,7 +93,7 @@ int main(int argc, char* argv[])
     cv::Mat mat_ori2, mat_temp2, mat_gauss2, mat_thr2;
 
     //基準画像の輝度重心計算
-    int startvx = 1;
+    int startvx = 0;
     int startvy = 0;
     string s_startvx = int2string_0set(startvx, 4);
     string s_startvy = int2string_0set(startvy, 4);
@@ -134,9 +141,15 @@ int main(int argc, char* argv[])
             cout << csvpath << " ended" << endl;
 
             vector<grain> distGrain;
+            QueryPerformanceCounter(&start);
             GrainMatching(CenterOfBrightness1, CenterOfBrightness2, distGrain, 0, 0, 0, 0);
+            QueryPerformanceCounter(&end);
+            std::cout << "culculate = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
             csvpath = savepath + "/dist_" + s_startvx + s_startvy + "vs" + s_vx + s_vy;
+            QueryPerformanceCounter(&end);
             grain2csv(csvpath, distGrain, label_dist);
+            QueryPerformanceCounter(&end);
+            std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
             cout << csvpath << " ended" << endl;
         }
     }
@@ -227,12 +240,20 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
 {
     /*type = 0 flag=3をpass, type=1 カット, type=2 全部入れる*/
 
-    for (int i = 0; i < input1.size(); i++)
+    assert(type != 1);
+
+    cout << "i,j=" << input1.size() << "," << input2.size() << endl;
+    out.reserve(input1.size() * input2.size());
+
+    auto sz1 = input1.size();
+    auto sz2 = input2.size();
+
+    for (int i = 0; i < sz1; i++)
     {
-        for (int j = 0; j < input2.size(); j++)
+        for (int j = 0; j < sz2; j++)
         {
-            int flg1 = input1.at(i).flg;
-            int flg2 = input2.at(j).flg;
+            int flg1 = input1[i].flg;
+            int flg2 = input2[j].flg;
             grain dist;
             if (type != 2)
             {
@@ -251,97 +272,59 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
             {
                 dist.flg = 3;
             }
-            dist.x = input1.at(i).x - input2.at(j).x;
-            dist.y = input1.at(i).y - input2.at(j).y;
+            dist.x = input1[i].x - input2[j].x;
+            dist.y = input1[i].y - input2[j].y;
+#if 0
             if (type == 1)
             {
                 if (fabs(dist.x - centerX) > cut_pixel) continue;
                 if (fabs(dist.y - centerY) > cut_pixel) continue;
             }
+#endif
             out.push_back(dist);
         }
         if (i == input1.size() - 1)
         {
-            cout << "\r" << i << "/" << input1.size() << string(12, ' ') << endl;
+            //cout << "\r" << i << "/" << input1.size() << string(12, ' ') << endl;
         }
         else
         {
-            cout << "\r" << i << "/" << input1.size() << string(12, ' ');
+            //cout << "\r" << i << "/" << input1.size() << string(12, ' ');
         }
        
     }
 }
-void GrainMatchinghash(const vector<grain>& input_hash, const vector<grain>& input_pair, int cut_side, int cut_pixel, int hash_size, int siftX, int siftY)
+void GrainMatchingMaltiThread(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel)
 {
-    int pixel_bottom = 1088;
-    int pixel_right;
-    double hash_top = 0;
-    double hash_bottom = hash_size;
-    double hash_left, hash_right;
-    string hashpath = savepath + "/hashcsv_" + "minus" + to_string(minus) + "_" + to_string(hash_size) + "_" + to_string(siftX + 1) + "by" + to_string(siftY + 1);
-    std::filesystem::create_directory(hashpath);
 
-    if (cut_side == 0)
+    for (int i = 0; i < input1.size(); i++)
     {
-        pixel_right = 2048;
+        //std::thread th_1(ThreadA(input1, input2, out, type, centerX, centerY, cut_pixel, i));
     }
-    else
-    {
-        pixel_right = 2048 - cut_pixel;
-    }
-    double dist_x = (double)(pixel_right - hash_size) / siftX;
-    double dist_y = (double)(pixel_bottom - hash_size) / siftY;
-
-    while (hash_bottom <= pixel_bottom)
-    {
-        if (cut_side == 0)
-        {
-            hash_left = cut_pixel;
-        }
-        else
-        {
-            hash_left = 0;
-        }
-        hash_right = hash_left + hash_size;
-
-        while (hash_right <= pixel_right)
-        {
-            vector<grain> hashCenter;
-            string s_top = to_string((int)hash_top);
-            string s_left = to_string((int)hash_left);
-            string csvpath = hashpath + "/top_" + s_top + "left_" + s_left;
-
-            for (int i = 0; i < input_hash.size(); i++)
-            {
-                grain temp = input_hash.at(i);
-                if (temp.flg == 3) continue;
-                if (temp.x < hash_left) continue;
-                if (temp.x > hash_right) continue;
-                if (temp.y < hash_top) continue;
-                if (temp.y > hash_bottom) continue;
-                hashCenter.push_back(temp);
-            }
-            if (hashCenter.size() == 0)
-            {
-                //cout << csvpath << " non data" << endl;
-                csvpath += "_non";
-            }
-            vector<grain> hashDist;
-            GrainMatching(hashCenter, input_pair, hashDist, 1, -158.1, 0, 5);
-            grain2csv(csvpath, hashDist, label_dist);
-            cout << csvpath << " ended" << endl;
-
-            hash_right += dist_x;
-            hash_left += dist_x;
-        }
-        //cout << "top:" << to_string((int)hash_top) << " left:" << to_string((int)hash_left) << " eneded" << endl;;
-        hash_top += dist_y;
-        hash_bottom += dist_y;
-    }
-
 }
 
+
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
+{
+    string file = filepath + ".csv";
+    std::ofstream ofs;
+    FILE *fp = std::fopen(file.c_str(), "wb");
+    //一行目(ラベルの記述)
+    for (int i = 0; i < label.size() - 1; i++)
+    {
+        fputs((label.at(i)+",").c_str(), fp);
+    }
+    fputs((label.at(label.size() - 1) + "\r\n").c_str(), fp);
+
+    auto sz = input.size();
+    for (int i = 0; i < sz; i++)
+    {
+        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+    }
+    fclose(fp);
+}
+
+void grain2csv0(string filepath, const vector<grain>& input, vector<string> label)
 {
     string file = filepath + ".csv";
     std::ofstream ofs;
@@ -353,11 +336,14 @@ void grain2csv(string filepath, const vector<grain>& input, vector<string> label
     }
     ofs << label.at(label.size() - 1) << endl;
 
-    for (int i = 0; i < input.size(); i++)
+    auto sz = input.size();
+    for (int i = 0; i < sz; i++)
     {
         ofs << input.at(i).x << "," << input.at(i).y << "," << input.at(i).flg << endl;
     }
 }
+
+
 
 vector<vector<double>> MatchingCount(const vector<vector<double>>& input, const vector<vector<double>>& pair, double thr_pixel)
 {
@@ -381,4 +367,46 @@ vector<vector<double>> MatchingCount(const vector<vector<double>>& input, const 
         }
     }
     return output;
+}
+
+void ThreadA(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel, int i) {
+    for (int j = 0; j < input2.size(); j++)
+    {
+        int flg1 = input1.at(i).flg;
+        int flg2 = input2.at(j).flg;
+        grain dist;
+        if (type != 2)
+        {
+            if (flg1 == 3 || flg2 == 3) continue;
+        }
+        //このフラグ判断ベン図的に怪しい
+        if (flg1 == 1 || flg2 == 1)
+        {
+            dist.flg = 1;
+        }
+        if (flg1 == 2 || flg2 == 2)
+        {
+            dist.flg = 2;
+        }
+        if (flg1 == 3 || flg2 == 3)
+        {
+            dist.flg = 3;
+        }
+        dist.x = input1.at(i).x - input2.at(j).x;
+        dist.y = input1.at(i).y - input2.at(j).y;
+        if (type == 1)
+        {
+            if (fabs(dist.x - centerX) > cut_pixel) continue;
+            if (fabs(dist.y - centerY) > cut_pixel) continue;
+        }
+        out.push_back(dist);
+    }
+    if (i == input1.size() - 1)
+    {
+        cout << "\r" << i << "/" << input1.size() << string(12, ' ') << endl;
+    }
+    else
+    {
+        cout << "\r" << i << "/" << input1.size() << string(12, ' ');
+    }
 }

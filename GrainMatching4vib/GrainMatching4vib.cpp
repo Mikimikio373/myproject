@@ -28,6 +28,7 @@ void gaussianfilter(const cv::Mat& src, cv::Mat& dst, int size, double sigma);
 void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigma, int minus);
 void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath);
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
+void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax);
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label);
 void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> label);
 void grain2csv0(string filepath, const vector<grain>& input, vector<string> label);
@@ -103,7 +104,7 @@ int main(int argc, char* argv[])
         //string pngpath = foldername + "/" + foldername + "_" + std::to_string(num) + "_0.png";
         if (std::filesystem::exists(pngpath) == false)
         {
-            cout << "there is not png file" << pngpath << endl;
+            cout << "there is not png file: " << pngpath << " Is current directry IMAGE00_AREA-1/png ?" << endl;
             return -1;
         }
         mat_ori = cv::imread(pngpath, 0);
@@ -138,14 +139,16 @@ int main(int argc, char* argv[])
             string pos2 = int2string_0set(i, 3);
 
             GrainMatching(CenterOfBrightnessAll[num], CenterOfBrightnessAll[i], distGrain, 0, 0, 0, 0);
+            vector<grain> distGrain_cut;
+            calc_max_bin(distGrain, distGrain_cut, 200, -2048, 2048, 100, -1088, 1088);
             string csvpath = savepath + "/dist_" + pos1 + "_" + pos2;
             if (mode == 0)
             {
-                grain2csv(csvpath, distGrain, label_dist);
+                grain2csv(csvpath, distGrain_cut, label_dist);
             }
             else if (mode == 1)
             {
-                grain2csv_skip(csvpath, distGrain, label_dist);
+                grain2csv_skip(csvpath, distGrain_cut, label_dist);
             }
             cout << csvpath << " ended" << endl;
         }
@@ -282,6 +285,49 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
             //cout << "\r" << i << "/" << input1.size() << string(12, ' ');
         }
        
+    }
+}
+
+void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax)
+{
+    double x_wbin = (xmax - xmin) / xbin;
+    double y_wbin = (ymax - ymin) / ybin;
+    vector<vector<vector<grain>>> box(xbin, vector<vector<grain>>(ybin));
+    for (int i = 0; i < input.size(); i++)
+    {
+        //範囲外にあったらpass
+        if (input[i].x < xmin || input[i].x > xmax || input[i].y < ymin || input[i].y > ymax) { continue; }
+        grain tmp;
+        tmp.x = input[i].x;
+        tmp.y = input[i].y;
+        tmp.flg = input[i].flg;
+        int a = (int)floor((input[i].x - xmin) / x_wbin); //代入するbinの計算
+        int b = (int)floor((input[i].y - ymin) / y_wbin);
+        box[a][b].push_back(tmp); //bin詰め
+    }
+    int maxbinsize = 0;
+    int maxbinx, maxbiny;
+    for (int i = 0; i < xbin; i++)
+    {
+        for (int j = 0; j < ybin; j++)
+        {
+            int size = box[i][j].size();
+            if (size > maxbinsize)
+            {
+                maxbinsize = size;
+                maxbinx = i;
+                maxbiny = j;
+            }
+        }
+    }
+    output = box[maxbinx][maxbiny];
+    for (int i = -1; i < 2; i++)
+    {
+        for (int j = -1; j < 2; j++)
+        {
+            if (i == 0 && j == 0) { continue; }
+            output.insert(output.end(), box[maxbinx + i][maxbiny + j].begin(), box[maxbinx + i][maxbiny + j].end());
+        }
     }
 }
 

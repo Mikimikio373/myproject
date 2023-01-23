@@ -29,7 +29,9 @@ void gaussianfilter(const cv::Mat& src, cv::Mat& dst, int size, double sigma);
 void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigma, int minus);
 void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath);
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel);
-void GrainMatchinghash(const vector<grain>& input_hash, const vector<grain>& input_pair, int cut_side, int cut_pixel, int hash_size, int siftX, int siftY);
+//void GrainMatchinghash(const vector<grain>& input_hash, const vector<grain>& input_pair, int cut_side, int cut_pixel, int hash_size, int siftX, int siftY);
+void change_coordinate(vector<grain>& input, double a, double b, double c, double d);
+void change_coordinate_yflip(vector<grain>& input, double a, double b, double c, double d);
 void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax);
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label);
 void grain2csv0(string filepath, const vector<grain>& input, vector<string> label);
@@ -39,7 +41,7 @@ vector<string> label_center = { "centerX", "centerY", "flag" };
 vector<string> label_dist = { "distX","distY","flag" };
 string basepath = "IMAGE00_AREA-1/png";
 string savepath = "GrainMatching_loop";
-int minus = 50;
+int minus = 45;
 
 
 
@@ -59,10 +61,10 @@ int main()
     cv::Mat labels, stats, centroids;
 
     //基準画像の輝度重心計算
-    string pngpath1 = "R:\\minami\\20221017_forGrainMaching0.025\\type1\\Module1\\ver-1\\E\\IMAGE00_AREA-1\\png\\L0_VX0000_VY0000_59.png";
-    string pngpath2 = "R:\\minami\\20221017_forGrainMaching0.025\\type1\\Module1\\ver-1\\E\\IMAGE00_AREA-1\\png\\L0_VX0001_VY0000_59.png";
-    //string pngpath1 = "R:\\minami\\20221017_sensorali\\id0-1.jpg";
-    //string pngpath2 = "R:\\minami\\20221017_sensorali\\id1-1.jpg";
+    //string pngpath1 = "R:\\minami\\20221017_forGrainMaching0.025\\type1\\Module1\\ver-1\\E\\IMAGE00_AREA-1\\png\\L0_VX0000_VY0000_59.png";
+    //string pngpath2 = "R:\\minami\\20221017_forGrainMaching0.025\\type1\\Module1\\ver-1\\E\\IMAGE00_AREA-1\\png\\L0_VX0001_VY0000_59.png";
+    string pngpath1 = "R:\\minami\\20221229_ali-m\\1-0\\Module1\\sensor-1\\IMAGE00_AREA-1\\png\\L0_VX0000_VY0000_4_0.png";
+    string pngpath2 = "R:\\minami\\20221229_ali-m\\1-0\\Module0\\sensor-9-2\\IMAGE00_AREA-1\\png\\L0_VX0000_VY0000_4_0.png";
 
     if (std::filesystem::exists(pngpath1) == false)
     {
@@ -74,10 +76,17 @@ int main()
     cv::threshold(mat_gauss1, mat_thr1, 1, 255, cv::THRESH_BINARY);
     nLabs = cv::connectedComponentsWithStats(mat_thr1, labels, stats, centroids, 8, CV_32S, cv::CCL_DEFAULT); //ラベリング
     vector<grain> CenterOfBrightness1;
-    string csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\center_ver-1";
-    //string csvpath = "R:\\minami\\20221017_sensorali\\center_id-0";
+    //string csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\center_ver-1";
+    string csvpath = "R:\\minami\\20221229_ali-m\\1-0\\senter_id0-9";
     CalculateBrightnessCenter(mat_gauss1, labels, stats, nLabs, CenterOfBrightness1, csvpath);
     cout << csvpath << " ended" << endl;
+
+    double a1 = 0.0006310901546465;
+    double b1 = -4.53177236309645E-07;
+    double c1 = 2.44455793612756E-07;
+    double d1 = 0.0006304259659799;
+    change_coordinate_yflip(CenterOfBrightness1, a1, b1, c1, d1);
+    grain2csv("R:\\minami\\20221229_ali-m\\1-0\\senter_id0-9_stage", CenterOfBrightness1, label_center);
 
     if (std::filesystem::exists(pngpath2) == false)
     {
@@ -89,34 +98,42 @@ int main()
     cv::threshold(mat_gauss2, mat_thr2, 1, 255, cv::THRESH_BINARY);
     nLabs = cv::connectedComponentsWithStats(mat_thr2, labels, stats, centroids, 8, CV_32S, cv::CCL_DEFAULT); //ラベリング
     vector<grain> CenterOfBrightness2;
-    csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\center_ver-2";
-    //csvpath = "R:\\minami\\20221017_sensorali\\center_id-12";
+    //csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\center_ver-2";
+    csvpath = "R:\\minami\\20221229_ali-m\\1-0\\senter_id1-1";
     CalculateBrightnessCenter(mat_gauss2, labels, stats, nLabs, CenterOfBrightness2, csvpath);
     cout << csvpath << " ended" << endl;
+
+    double a2 = 0.0006308631823425;
+    double b2 = -1.46500387510909E-07;
+    double c2 = -2.16099593975593E-07;
+    double d2 = -0.000630386279193;
+    change_coordinate(CenterOfBrightness2, a2, b2, c2, d2);
+    grain2csv("R:\\minami\\20221229_ali-m\\1-0\\senter_id1-1_stage", CenterOfBrightness2, label_center);
 
     vector<grain> distGrain;
     QueryPerformanceCounter(&start);
     GrainMatching(CenterOfBrightness1, CenterOfBrightness2, distGrain, 0, 0, 0, 0);
     QueryPerformanceCounter(&end);
     std::cout << "culculate = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
-    csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\dist_ver-1vs2";
-    //csvpath = "R:\\minami\\20221017_sensorali\\dist_id-0vs1";
+    //csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\dist_ver-1vs2";
+    csvpath = "R:\\minami\\20221229_ali-m\\1-0\\dist_id0-9vs1-1";
     QueryPerformanceCounter(&start);
     grain2csv(csvpath, distGrain, label_dist);
     QueryPerformanceCounter(&end);
     std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
 
-    vector<grain> distGrain_cut;
-    QueryPerformanceCounter(&start);
-    calc_max_bin(distGrain, distGrain_cut, 200, -2048, 2048, 100, -1088, 1088);
-    QueryPerformanceCounter(&end);
-    std::cout << "cutting time = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
-    csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\dist_ver-1vs2_cut";
-    QueryPerformanceCounter(&start);
-    grain2csv(csvpath, distGrain_cut, label_dist);
-    QueryPerformanceCounter(&end);
-    std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
-    cout << csvpath << " ended" << endl;
+    //vector<grain> distGrain_cut;
+    //QueryPerformanceCounter(&start);
+    //calc_max_bin(distGrain, distGrain_cut, 200, -2048, 2048, 100, -1088, 1088);
+    //QueryPerformanceCounter(&end);
+    //std::cout << "cutting time = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
+    ////csvpath = "R:\\minami\\20221017_forGrainMaching0.025\\dist_ver-1vs2_cut";
+    //csvpath = "R:\\minami\\20221017_sensorali\\dist_id-0vs1_cut";
+    //QueryPerformanceCounter(&start);
+    //grain2csv(csvpath, distGrain_cut, label_dist);
+    //QueryPerformanceCounter(&end);
+    //std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
+    //cout << csvpath << " ended" << endl;
    
     return 0;
 }
@@ -245,6 +262,27 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
             //cout << "\r" << i << "/" << input1.size() << string(12, ' ');
         }
        
+    }
+}
+
+void change_coordinate(vector<grain>& input, double a, double b, double c, double d)
+{
+    for (int i = 0; i < input.size(); i++)
+    {
+        double x1 = a * input[i].x + b * input[i].y;
+        double y1 = c * input[i].x + d * input[i].y;
+        input[i].x = x1;
+        input[i].y = y1;
+    }
+}
+void change_coordinate_yflip(vector<grain>& input, double a, double b, double c, double d)
+{
+    for (int i = 0; i < input.size(); i++)
+    {
+        double x1 = a * input[i].x + b * (double)(input[i].y - 1088.0);
+        double y1 = c * input[i].x + d * (double)(input[i].y - 1088.0);
+        input[i].x = x1;
+        input[i].y = y1;
     }
 }
 
