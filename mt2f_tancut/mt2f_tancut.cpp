@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 	if (argc != 8)
 	{
 		cout << "argc = " << argc << endl;
-		cout << "command line error, please filepath nx ny npicture PL" << endl;
+		cout << "command line error, please filepath nx ny npicture PL ax_cut ay_cut" << endl;
 		return 3;
 	}
 
@@ -153,7 +153,11 @@ int main(int argc, char* argv[]) {
 				if (layer == 0)
 				{
 
-					last = j["Last"] - 1;
+					last = j["Last"];
+					if (last < 15) {
+						cout << "warning! " << json_filename << " last < 15 !" << endl;
+						last = 15;
+					}
 					first = last - 15;
 					fv.z1 = j["Images"][last]["z"];
 					fv.z1 *= 1000;
@@ -206,7 +210,11 @@ int main(int argc, char* argv[]) {
 
 				else if (layer == 1)
 				{
-					first = j["First"] - 1;
+					first = j["First"];
+					if (first > npicture - 16) {
+						cout << "warning! " << json_filename << " first < 0 !" << endl;
+						first = npicture - 16;
+					}
 					last = first + 15;
 					fv.z1 = j["Images"][last]["z"];
 					fv.z1 *= 1000;

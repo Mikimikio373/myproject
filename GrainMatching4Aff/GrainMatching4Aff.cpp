@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
     std::filesystem::current_path(working_dir);
     std::filesystem::path path = std::filesystem::current_path();
     cout << "current_path: " << path << endl;
-    int NPcture = atoi(argv[2]);
+    int NPcture = atoi(argv[2]) - 1;
     int shift_X = atoi(argv[3]);
     int shift_Y = atoi(argv[4]);
     int minus = atoi(argv[5]);

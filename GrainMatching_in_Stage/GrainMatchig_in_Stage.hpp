@@ -1,13 +1,15 @@
 #pragma once
 #include <iostream>
-#include <opencv2/opencv.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
 
+//外部インクルード
+#include <nlohmann/json.hpp> //C:\Users\flab\Documents\json-develop\include
 
 using std::cout;
 using std::endl;
+using std::cerr;
 using std::vector;
 using std::string;
 
@@ -18,6 +20,15 @@ public:
     double y = 0;
     int flg = 0;
 };
+class grain_match
+{
+public:
+    double x = 0;
+    double y = 0;
+    int flg = 0;
+    double x1, x2, y1, y2;
+};
+
 
 vector<string> split(string str, char del) {
     int first = 0;
@@ -36,77 +47,32 @@ vector<string> split(string str, char del) {
 }
 
 //optionを探して代入して返す. 1: optionあり, -1: optionエラー
-int getopt(vector<string>& input, string& ref_name, string& comp_name, string& ref_aff, string& comp_aff, int& mode, int& minus, int& target_num_max, int& target_num_min, int& skipmode) {
+int getopt(vector<string>& input, double &tar_x, double &tar_y, double &cutrange) {
 
     int flg = 0;
 
     for (int i = 0; i < input.size(); i++)
     {
-        if (input[i] == "-COBname")
+        if (input[i] == "-cutmode")
         {
             try
             {
-                ref_name = input.at(i + 1);
-                comp_name = input.at(i + 2);
+                tar_x = std::stod(input.at(i + 1));
+                tar_y = std::stod(input.at(i + 2));
+                cutrange = std::stod(input.at(i + 3));
                 flg = 1;
             }
             catch (const std::exception& tmp)
             {
+                cerr << "throw exception in -cutmode" << endl;
                 return -1;
             }
-        }
-        else if (input[i] == "-aff")
-        {
-            try
-            {
-                ref_aff = input.at(i + 1);
-                comp_aff = input.at(i + 2);
-                mode = std::stoi(input.at(i + 3));
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else  if (input[i] == "-minus")
-        {
-            try
-            {
-                minus = std::stoi(input.at(i + 1));
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-autominus")
-        {
-            try
-            {
-                target_num_max = std::stoi(input.at(i + 1));
-                target_num_min = std::stoi(input.at(i + 2));
-                if (target_num_max <= target_num_min)
-                {
-                    throw "target_num_max <= target_num_min";
-                }
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-skip")
-        {
-            skipmode = 1;
         }
     }
     if (flg == 0) { return -1; }
     else { return 1; }
 }
-    
+
 void get_affparam(string path, double& a, double& b, double& c, double& d) {
     if (std::filesystem::exists(path) == false)
     {
@@ -123,6 +89,25 @@ void get_affparam(string path, double& a, double& b, double& c, double& d) {
         data.emplace_back(tmp);
     }
     //abcdの代入
+    a = stod(data[1][0]);
+    b = stod(data[1][1]);
+    c = stod(data[1][2]);
+    d = stod(data[1][3]);
+}
+
+void get_stage(string path, double& sx, double& sy) {
+    if (std::filesystem::exists(path) == false)
+    {
+        std::cerr << "threre no file: " << path << endl;
+        exit(-1);
+    }
+
+    std::ifstream json_f(path, std::ios::in);
+    nlohmann::json j;
+    json_f >> j;
+    json_f.close();
+    sx = j["Images"][0]["x"];
+    sy = j["Images"][0]["y"];
 }
 
 string int2string_0set(int input, int digit) {
@@ -133,75 +118,23 @@ string int2string_0set(int input, int digit) {
     return s;
 }
 
-void gaussianfilter(const cv::Mat& src, cv::Mat& dst, int size, double sigma)
-{
-    cv::Mat temp;
-    cv::GaussianBlur(src, temp, cv::Size(size, size), (sigma, sigma));
-    cv::subtract(temp, src, dst);
-}
-void gaussianfilterminus(const cv::Mat& src, cv::Mat& dst, int size, double sigma, int minus)
-{
-    cv::Mat temp;
-    cv::GaussianBlur(src, temp, cv::Size(size, size), (sigma, sigma));
-    cv::subtract(temp, src, temp);
-    cv::subtract(temp, minus, dst);
-}
-
-void CalculateBrightnessCenter(cv::Mat src, cv::Mat labels, cv::Mat stats, int nLabs, vector<grain>& out, string filepath)
-{
-    string file = filepath + "_stats.csv";
-    std::ofstream ofs;
-    ofs.open(file, std::ios::out);
-    //一行目(ラベルの記述)
-    ofs << "label,left,top,height,width,area,centerX,centerY,flag" << endl;
-
-    for (int i = 1; i < nLabs; i++)
+void read_csv(string path, vector<grain>& input) {
+    std::ifstream ifs(path);
+    string buf;
+    cout << path << " now reading" << endl;
+    int num = 0;
+    while (std::getline(ifs, buf))
     {
-        //label情報の参照
-        int* param = stats.ptr<int>(i);
-        int left = param[cv::ConnectedComponentsTypes::CC_STAT_LEFT];
-        int top = param[cv::ConnectedComponentsTypes::CC_STAT_TOP];
-        int height = param[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
-        int width = param[cv::ConnectedComponentsTypes::CC_STAT_WIDTH];
-        int area = param[cv::ConnectedComponentsTypes::CC_STAT_AREA];
-
-        ofs << i << "," << left << "," << top << "," << height << "," << width << "," << area << ",";
-
-        //輝度値の全探索
-        double BrightSum = 0;
-        double BrightX = 0;
-        double BrightY = 0;
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                if (labels.at<int>(top + y, left + x) != i) { continue; } //label番号の違うものをスキップ
-                int bright = src.at<unsigned char>(top + y, left + x);
-                BrightSum += bright;
-                BrightX += (double)bright * x;
-                BrightY += (double)bright * y;
-            }
-        }
-        grain push;
-        push.x = (double)left + BrightX / BrightSum;
-        push.y = (double)top + BrightY / BrightSum;
-        if (height == 1)
-        {
-            push.flg = 1;
-        }
-        if (width == 1)
-        {
-            push.flg = 2;
-        }
-        if (area == 1)
-        {
-            push.flg = 3;
-        }
-        ofs << push.x << "," << push.y << "," << push.flg << endl;
-        out.push_back(push);
-
+        if (num == 0) { num++; continue; }
+        vector<string> line_data = split(buf, ',');
+        grain tmp;
+        tmp.x = std::stod(line_data[0]);
+        tmp.y = std::stod(line_data[1]);
+        tmp.flg = std::stoi(line_data[2]);
+        input.push_back(tmp);
     }
 }
+
 
 void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vector<grain>& out, int type, double centerX, double centerY, double cut_pixel)
 {
@@ -252,6 +185,33 @@ void GrainMatching(const vector<grain>& input1, const vector<grain>& input2, vec
     }
 }
 
+//注意 :input1 - input2を計算
+void GrainMatching_in_stage(const vector<grain>& input1, const vector<grain>& input2, vector<grain_match>& out, double tar_x, double tar_y, double cutrange)
+{
+
+    for (int i = 0; i < input1.size(); i++)
+    {
+        for (int j = 0; j < input2.size(); j++)
+        {
+            grain_match dist;
+            dist.x = input1.at(i).x - input2.at(j).x;
+            dist.y = input1.at(i).y - input2.at(j).y;
+            if (cutrange != 0)
+            {
+                if (fabs(dist.x - tar_x) > cutrange || fabs(dist.y - tar_y) > cutrange)
+                {
+                    continue;
+                }
+            }
+            dist.x1 = input1[i].x;
+            dist.y1 = input1[i].y;
+            dist.x2 = input2[j].x;
+            dist.y2 = input2[j].y;
+            out.push_back(dist);
+        }
+    }
+}
+
 void change_coordinate(vector<grain>& input, double a, double b, double c, double d)
 {
     for (int i = 0; i < input.size(); i++)
@@ -270,6 +230,19 @@ void change_coordinate_yflip(vector<grain>& input, double a, double b, double c,
         double y1 = c * input[i].x + d * (double)(input[i].y - 1088.0);
         input[i].x = x1;
         input[i].y = y1;
+    }
+}
+
+void pixel2stage(vector<grain>& input, double a, double b, double c, double d, double p, double q, double sx, double sy)
+{
+    double h_width = 1024.0;
+    double h_height = 544.0;
+    for (int i = 0; i < input.size(); i++)
+    {
+        double x = a * (input[i].x - h_width) + b * (input[i].y - h_height) + p + sx;
+        double y = c * (input[i].x - h_width) + d * (input[i].y - h_height) + q + sy;
+        input[i].x = x;
+        input[i].y = y;
     }
 }
 
@@ -316,10 +289,9 @@ void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, d
     }
 }
 
-void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
+void grain2csv(string filepath, const vector<grain_match>& input, vector<string> label)
 {
     string file = filepath + ".csv";
-    std::ofstream ofs;
     FILE* fp = std::fopen(file.c_str(), "wb");
     //一行目(ラベルの記述)
     for (int i = 0; i < label.size() - 1; i++)
@@ -331,9 +303,10 @@ void grain2csv(string filepath, const vector<grain>& input, vector<string> label
     auto sz = input.size();
     for (int i = 0; i < sz; i++)
     {
-        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        fprintf(fp, "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\r\n", input[i].x, input[i].y, input[i].x1, input[i].y1, input[i].x2, input[i].y2);
     }
     fclose(fp);
+    cout << "all out number of grain: " << input.size() << endl;
 }
 
 void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> label)
@@ -349,12 +322,15 @@ void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> 
     fputs((label.at(label.size() - 1) + "\r\n").c_str(), fp);
 
     auto sz = input.size();
+    int cnt = 0;
     for (int i = 0; i < sz; i++)
     {
         if (input[i].flg != 0) { continue; }
-        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        fprintf(fp, "%.6f,%.6f,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        cnt++;
     }
     fclose(fp);
+    cout << "skipped object number: " << cnt << endl;
 }
 
 

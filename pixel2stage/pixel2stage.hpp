@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 
+//外部インクルード
+#include <nlohmann/json.hpp> //C:\Users\flab\Documents\json-develop\include
 
 using std::cout;
 using std::endl;
@@ -36,40 +38,13 @@ vector<string> split(string str, char del) {
 }
 
 //optionを探して代入して返す. 1: optionあり, -1: optionエラー
-int getopt(vector<string>& input, string& ref_name, string& comp_name, string& ref_aff, string& comp_aff, int& mode, int& minus, int& target_num_max, int& target_num_min, int& skipmode) {
+int getopt(vector<string>& input, int& minus, int& target_num_max, int& target_num_min, int& json_flg, double &sx, double &sy) {
 
     int flg = 0;
 
     for (int i = 0; i < input.size(); i++)
     {
-        if (input[i] == "-COBname")
-        {
-            try
-            {
-                ref_name = input.at(i + 1);
-                comp_name = input.at(i + 2);
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-aff")
-        {
-            try
-            {
-                ref_aff = input.at(i + 1);
-                comp_aff = input.at(i + 2);
-                mode = std::stoi(input.at(i + 3));
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else  if (input[i] == "-minus")
+        if (input[i] == "-minus")
         {
             try
             {
@@ -98,15 +73,26 @@ int getopt(vector<string>& input, string& ref_name, string& comp_name, string& r
                 return -1;
             }
         }
-        else if (input[i] == "-skip")
-        {
-            skipmode = 1;
+        else if (input[i] == "-nojson")
+        {   
+            try
+            {
+                json_flg = 1;
+                sx = std::stod(input.at(i + 1));
+                sy = std::stod(input.at(i + 2));
+                flg = 1;
+            }
+            catch (const std::exception& tmp)
+            {
+                return -1;
+            }
         }
+
     }
     if (flg == 0) { return -1; }
     else { return 1; }
 }
-    
+
 void get_affparam(string path, double& a, double& b, double& c, double& d) {
     if (std::filesystem::exists(path) == false)
     {
@@ -123,6 +109,27 @@ void get_affparam(string path, double& a, double& b, double& c, double& d) {
         data.emplace_back(tmp);
     }
     //abcdの代入
+    a = stod(data[1][0]);
+    b = stod(data[1][1]);
+    c = stod(data[1][2]);
+    d = stod(data[1][3]);
+    cout << a << ", " << b << ", " << c << ", " << d << endl;
+}
+
+void get_stage(string path, double& sx, double& sy) {
+    if (std::filesystem::exists(path) == false)
+    {
+        std::cerr << "threre no file: " << path << endl;
+        exit(-1);
+    }
+
+    std::ifstream json_f(path, std::ios::in);
+    nlohmann::json j;
+    json_f >> j;
+    json_f.close();
+    sx = j["Images"][0]["x"];
+    sy = j["Images"][0]["y"];
+    cout << sx << "," << sy << endl;
 }
 
 string int2string_0set(int input, int digit) {
@@ -273,6 +280,19 @@ void change_coordinate_yflip(vector<grain>& input, double a, double b, double c,
     }
 }
 
+void pixel2stage(vector<grain>& input, double a, double b, double c, double d, double p, double q, double sx, double sy)
+{
+    double h_width = 1024.0;
+    double h_height = 544.0;
+    for (int i = 0; i < input.size(); i++)
+    {
+        double x = a * (input[i].x - h_width) + b * (input[i].y - h_height) + p + sx;
+        double y = c * (input[i].x - h_width) + d * (input[i].y - h_height) + q + sy;
+        input[i].x = x;
+        input[i].y = y;
+    }
+}
+
 void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, double xmin, double xmax, int ybin, double ymin, double ymax)
 {
     double x_wbin = (xmax - xmin) / xbin;
@@ -331,7 +351,7 @@ void grain2csv(string filepath, const vector<grain>& input, vector<string> label
     auto sz = input.size();
     for (int i = 0; i < sz; i++)
     {
-        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        fprintf(fp, "%.6f,%.6f,%d\r\n", input[i].x, input[i].y, input[i].flg);
     }
     fclose(fp);
 }
@@ -349,12 +369,15 @@ void grain2csv_skip(string filepath, const vector<grain>& input, vector<string> 
     fputs((label.at(label.size() - 1) + "\r\n").c_str(), fp);
 
     auto sz = input.size();
+    int cnt = 0;
     for (int i = 0; i < sz; i++)
     {
         if (input[i].flg != 0) { continue; }
-        fprintf(fp, "%g,%g,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        fprintf(fp, "%.6f,%.6f,%d\r\n", input[i].x, input[i].y, input[i].flg);
+        cnt++;
     }
     fclose(fp);
+    cout << "skipped object number: " << cnt << endl;
 }
 
 

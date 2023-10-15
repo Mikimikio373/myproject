@@ -1,15 +1,12 @@
-#pragma once
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include <string>
-#include <sstream>
 #include <fstream>
 
 
 using std::cout;
 using std::endl;
-using std::vector;
 using std::string;
+using std::vector;
 
 class grain
 {
@@ -17,113 +14,10 @@ public:
     double x = 0;
     double y = 0;
     int flg = 0;
+
+private:
+
 };
-
-vector<string> split(string str, char del) {
-    int first = 0;
-    int last = str.find_first_of(del);
-    vector<string> result;
-    while (first < str.size()) {
-        string subStr(str, first, last - first);
-        result.push_back(subStr);
-        first = last + 1;
-        last = str.find_first_of(del, first);
-        if (last == string::npos) {
-            last = str.size();
-        }
-    }
-    return result;
-}
-
-//option‚ð’T‚µ‚Ä‘ã“ü‚µ‚Ä•Ô‚·. 1: option‚ ‚è, -1: optionƒGƒ‰[
-int getopt(vector<string>& input, string& ref_name, string& comp_name, string& ref_aff, string& comp_aff, int& mode, int& minus, int& target_num_max, int& target_num_min, int& skipmode) {
-
-    int flg = 0;
-
-    for (int i = 0; i < input.size(); i++)
-    {
-        if (input[i] == "-COBname")
-        {
-            try
-            {
-                ref_name = input.at(i + 1);
-                comp_name = input.at(i + 2);
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-aff")
-        {
-            try
-            {
-                ref_aff = input.at(i + 1);
-                comp_aff = input.at(i + 2);
-                mode = std::stoi(input.at(i + 3));
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else  if (input[i] == "-minus")
-        {
-            try
-            {
-                minus = std::stoi(input.at(i + 1));
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-autominus")
-        {
-            try
-            {
-                target_num_max = std::stoi(input.at(i + 1));
-                target_num_min = std::stoi(input.at(i + 2));
-                if (target_num_max <= target_num_min)
-                {
-                    throw "target_num_max <= target_num_min";
-                }
-                flg = 1;
-            }
-            catch (const std::exception& tmp)
-            {
-                return -1;
-            }
-        }
-        else if (input[i] == "-skip")
-        {
-            skipmode = 1;
-        }
-    }
-    if (flg == 0) { return -1; }
-    else { return 1; }
-}
-    
-void get_affparam(string path, double& a, double& b, double& c, double& d) {
-    if (std::filesystem::exists(path) == false)
-    {
-        std::cerr << "threre no file: " << path << endl;
-        exit(-1);
-    }
-
-    std::ifstream ifs(path);
-    string line;
-    vector<vector<string>> data;
-    while (std::getline(ifs, line))
-    {
-        vector<string> tmp = split(line, ',');
-        data.emplace_back(tmp);
-    }
-    //abcd‚Ì‘ã“ü
-}
 
 string int2string_0set(int input, int digit) {
     std::ostringstream ss;
@@ -380,6 +274,22 @@ vector<vector<double>> MatchingCount(const vector<vector<double>>& input, const 
         }
     }
     return output;
+}
+
+vector<string> split(string str, char del) {
+    int first = 0;
+    int last = str.find_first_of(del);
+    vector<string> result;
+    while (first < str.size()) {
+        string subStr(str, first, last - first);
+        result.push_back(subStr);
+        first = last + 1;
+        last = str.find_first_of(del, first);
+        if (last == string::npos) {
+            last = str.size();
+        }
+    }
+    return result;
 }
 
 vector<vector<string>> csv2vector(string filename, int ignore_line_num = 0) {

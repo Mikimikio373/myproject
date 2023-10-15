@@ -43,7 +43,8 @@ int main(int argc, char* argv[])
     string ref_path, comp_path, output_path, dist_name, ref_aff, comp_aff;
     string ref_name = "center_1";
     string comp_name = "center_2";
-    int mode, target_num_max=0, target_num_min=0;
+    int mode, target_num_max = 0, target_num_min = 0;
+    int skipmode = 0;
     int opt_err = 0; //0: optionなし, 1: optionあり, -1: optionエラー
     if (argc == 5)
     {
@@ -62,7 +63,7 @@ int main(int argc, char* argv[])
         {
             opt.emplace_back(argv[i]);
         }
-        opt_err = getopt(opt, ref_name, comp_name, ref_aff, comp_aff, mode, minus, target_num_max, target_num_min);
+        opt_err = getopt(opt, ref_name, comp_name, ref_aff, comp_aff, mode, minus, target_num_max, target_num_min, skipmode);
     }
     else
     {
@@ -71,6 +72,7 @@ int main(int argc, char* argv[])
         cerr << "   -aff ref_aff, comp_path, mode" << endl;
         cerr << "   -minus minus" << endl;
         cerr << "   -autominus max, min" << endl;
+        cerr << "   -skip" << endl;
         exit(-1);
     }
     if (opt_err == -1)
@@ -80,6 +82,7 @@ int main(int argc, char* argv[])
         cerr << "   -aff ref_aff, comp_path, mode" << endl;
         cerr << "   -minus minus" << endl;
         cerr << "   -autominus max, min" << endl;
+        cerr << "   -skip" << endl;
         exit(-1);
     }
     
@@ -205,7 +208,13 @@ int main(int argc, char* argv[])
     std::cout << "culculate = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
     csvpath = output_path + "\\" + dist_name;
     QueryPerformanceCounter(&start);
-    grain2csv(csvpath, distGrain, label_dist);
+    if (skipmode == 1)
+    {
+        grain2csv_skip(csvpath, distGrain, label_dist);
+    }
+    else {
+        grain2csv(csvpath, distGrain, label_dist);
+    }
     QueryPerformanceCounter(&end);
     std::cout << "output = " << (double)(end.QuadPart - start.QuadPart) / freq.QuadPart << "sec.\n";
    

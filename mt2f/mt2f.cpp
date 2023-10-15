@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
 				if (layer == 0)
 				{
 
-					last = j["Last"] - 1;
+					last = j["Last"];
 					first = last - 15;
 					fv.z1 = j["Images"][last]["z"];
 					fv.z1 *= 1000;
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
 
 				else if (layer == 1)
 				{
-					first = j["First"] - 1;
+					first = j["First"];
 					last = first + 15;
 					fv.z1 = j["Images"][last]["z"];
 					fv.z1 *= 1000;
