@@ -43,6 +43,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GrainMatching4Aff_second", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "trance_resize_coor", "trance_resize_pos\trance_resize_pos.vcxproj", "{8FCC099F-DB79-418F-8265-86ABE86BF9F0}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TrackMatching", "TrackMatching\TrackMatching.vcxproj", "{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -253,6 +255,16 @@ Global
 		{8FCC099F-DB79-418F-8265-86ABE86BF9F0}.Release|x64.Build.0 = Release|x64
 		{8FCC099F-DB79-418F-8265-86ABE86BF9F0}.Release|x86.ActiveCfg = Release|Win32
 		{8FCC099F-DB79-418F-8265-86ABE86BF9F0}.Release|x86.Build.0 = Release|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Debug|x64.ActiveCfg = Debug|x64
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Debug|x64.Build.0 = Debug|x64
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Debug|x86.ActiveCfg = Debug|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Debug|x86.Build.0 = Debug|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Release|Any CPU.ActiveCfg = Release|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Release|x64.ActiveCfg = Release|x64
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Release|x64.Build.0 = Release|x64
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Release|x86.ActiveCfg = Release|Win32
+		{D797E6B5-2931-41A7-A6EB-98AC2C4BF23A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
