@@ -319,7 +319,6 @@ void calc_max_bin(const vector<grain>& input, vector<grain>& output, int xbin, d
 void grain2csv(string filepath, const vector<grain>& input, vector<string> label)
 {
     string file = filepath + ".csv";
-    std::ofstream ofs;
     FILE* fp = std::fopen(file.c_str(), "wb");
     //一行目(ラベルの記述)
     for (int i = 0; i < label.size() - 1; i++)
