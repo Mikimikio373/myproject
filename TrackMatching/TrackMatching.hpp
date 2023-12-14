@@ -27,13 +27,34 @@ public:
 	uint16_t vol = 0; /// hit数の合計 :2
 };
 
+class MatchedTrack
+{
+public:
+	double x1 = 0;
+	double y1 = 0;
+	double ax1 = 0;
+	double ay1 = 0;
+	uint16_t ph1 = 0; /// hit数の最大値 :2
+	uint16_t vol1 = 0; /// hit数の合計 :2
+	double x2 = 0;
+	double y2 = 0;
+	double ax2 = 0;
+	double ay2 = 0;
+	uint16_t ph2 = 0; /// hit数の最大値 :2
+	uint16_t vol2 = 0; /// hit数の合計 :2
+	double dx = 0;
+	double dy = 0;
+	double dax = 0;
+	double day = 0;
+};
+
 class aff_coef
 {
 public:
-	double a = 0;
+	double a = 1;
 	double b = 0;
 	double c = 0;
-	double d = 0;
+	double d = 1;
 	double p = 0;
 	double q = 0;
 };
@@ -182,19 +203,69 @@ namespace tmlib
 		return vtrack;
 	}
 
-	vector<MicroTrack> trance_affine(vector<phst::ClusterdMicroTrack>& input, aff_coef& aff, double sx, double sy, double thickness) {
+	vector<MicroTrack> trance_affine(vector<phst::ClusterdMicroTrack>& input, aff_coef& aff, double sx, double sy, double thickness, double ang_cut = 1.5) {
+		double mid_width = 2048.0 / 2.0;
+		double mid_height = 1088.0 / 2.0;
 		vector<MicroTrack> out;
 		for (int i = 0; i < input.size(); i++)
 		{
 			MicroTrack track;
-			track.x = aff.a * (double)input[i].px + aff.b * (double)input[i].py + aff.p + sx;
-			track.y = aff.c * (double)input[i].px + aff.d * (double)input[i].py + aff.q + sy;
+			track.x = aff.a * (double)(input[i].px - mid_width) + aff.b * (double)(input[i].py - mid_height) + aff.p + sx;
+			track.y = aff.c * (double)(input[i].px - mid_width) + aff.d * (double)(input[i].py - mid_height) + aff.q + sy;
 			track.ax = aff.a * (double)input[i].ax + aff.b * (double)input[i].ay / thickness;
 			track.ay = aff.c * (double)input[i].ax + aff.d * (double)input[i].ay / thickness;
 			track.ph = input[i].ph;
 			track.vol = input[i].vol;
+			if (fabs(track.ax) > ang_cut) { continue; }
+			if (fabs(track.ay) > ang_cut) { continue; }
 			out.push_back(track);
 		}
 		return out;
+	}
+
+	// a - b
+	vector<MatchedTrack> track_matching(vector<MicroTrack>& a, vector<MicroTrack>& b, double dpos_cut) {
+		vector<MatchedTrack> vdtrack;
+		for (int i = 0; i < a.size(); i++)
+		{
+			for (int j = 0; j < b.size(); j++)
+			{
+				MatchedTrack dtrack;
+				dtrack.dx = a[i].x - b[j].x;
+				dtrack.dy = a[i].y - b[j].y;
+				if (fabs(dtrack.dx) > dpos_cut) { continue; }
+				if (fabs(dtrack.dy) > dpos_cut) { continue; }
+				dtrack.dax = a[i].ax - b[j].ax;
+				dtrack.day = a[i].ay - b[j].ay;
+				dtrack.x1 = a[i].x;
+				dtrack.y1 = a[i].y;
+				dtrack.ax1 = a[i].ax;
+				dtrack.ay1 = a[i].ay;
+				dtrack.ph1 = a[i].ph;
+				dtrack.vol1 = a[i].vol;
+				dtrack.x2 = b[j].x;
+				dtrack.y2 = b[j].y;
+				dtrack.ax2 = b[j].ax;
+				dtrack.ay2 = b[j].ay;
+				dtrack.ph2 = b[j].ph;
+				dtrack.vol2 = b[j].vol;
+				vdtrack.push_back(dtrack);
+			}
+		}
+
+		return vdtrack;
+	}
+
+	void write_csv(vector<MatchedTrack> &input, string out_path) {
+		FILE* fp = std::fopen(out_path.c_str(), "wb");
+		//一行目(ラベルの記述)
+		fprintf(fp, "dx/D,dy/D,dax/D,day/D,x1/D,y1/D,ax1/D,ax1/D,ph1/I,vol1/I,x2/D,y2/D,ax2/D,ay2/D,ph2/I,vol2/I");
+
+		auto sz = input.size();
+		for (int i = 0; i < sz; i++)
+		{
+			fprintf(fp, "%g,%g,%g,%g,%g,%g,%g,%g,%d,%d,%g,%g,%g,%g,%d,%d\r\n", input[i].dx, input[i].dy, input[i].dax, input[i].day, input[i].x1, input[i].y1, input[i].ax1, input[i].ay1, input[i].ph1, input[i].vol1, input[i].x2, input[i].y2, input[i].ax2, input[i].ay2, input[i].ph2, input[i].vol2);
+		}
+		fclose(fp);
 	}
 }
