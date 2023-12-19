@@ -329,6 +329,9 @@ namespace tmlib
 			if (input[i].dx < xmin || input[i].dx > xmax || input[i].dy < ymin || input[i].dy > ymax) { continue; }
 			int a = floor((input[i].dx - xmin) / x_wbin); //代入するbinの計算
 			int b = floor((input[i].dy - ymin) / y_wbin);
+			//たまに計算誤差で範囲外に出てしまうため例外処理(要修正？難しいかも)
+			if (a < 0 || a >= xbin) { continue; }
+			if (b < 0 || b >= ybin) { continue; }
 			box[a][b] += 1; //bin詰め
 		}
 		int maxbinsize = 0;

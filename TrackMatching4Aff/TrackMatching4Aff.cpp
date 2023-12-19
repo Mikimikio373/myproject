@@ -15,12 +15,22 @@ using std::cerr;
 using std::endl;
 using std::string;
 using std::to_string;
+using std::stoi;
+using std::stod;
 using std::ifstream;
 using std::ofstream;
 using json = nlohmann::json;
 
-int main() {
-	string basepath = "A:/Test/TrackMatch/0000"; //scanデータが吐き出されるところ。例えば'0000'
+int main(int argc, char* argv[]) {
+	if (argc != 5)
+	{
+		cerr << "exception : usage: GrainMatching.exe, basepath, nx, ny, imager_num" << endl;
+		return -1;
+	}
+	string basepath = argv[1]; //"A:/Test/TrackMatch/0000"; //scanデータが吐き出されるところ。例えば'0000'
+	int nx = stoi(argv[2]);
+	int ny = stoi(argv[3]);
+	int imager = stoi(argv[4]); //対象のimager番号(0～71)
 	string ScanControllParam = basepath + "/ScanControllParam.json";
 	string ValidViewHistry = basepath + "/ValidViewHistory.json";
 	json scp, vvh;
@@ -30,8 +40,6 @@ int main() {
 
 	double pixel_size = 0.631; //1pixelのサイズ um/1pixel
 	double step_dis = 25.0; //1steの距離 um
-	int sensor_num = 24;
-	int imager = 0; //対象のimager番号(0～71)
 	float angcut = 12.0; //マッチングに使うトラックの角度カット pixel
 	int phcut = 0; //マッチングに使うトラックのphcut
 	int volcut = 0; //マッチングに使うトラックのvphcut
@@ -45,8 +53,7 @@ int main() {
 	double x_range = 50; //firstcutの時のx範囲 pixel
 	double y_range = 50; //firstcutの時のy範囲 pixel
 	double output_range = 2; //最終的にどれだけの範囲のデータを出力するか um
-	int nx = 45;
-	int ny = 25;
+	
 
 
 	//原点のトラックデータの読み込み
@@ -61,6 +68,7 @@ int main() {
 	//stageに対するpixelが±どっちなのか判断
 	bool shiftpm_x = true, shiftpm_y = true;
 	tmlib::shift_pm(shiftpm_x, shiftpm_y, origin_vtrack, origin_view, shiftnum_x, layer, angcut, data_path);
+	cout << shiftpm_x << ", " << shiftnum_y << endl;
 	
 
 	for (int vy = 0; vy < ny; vy++)
